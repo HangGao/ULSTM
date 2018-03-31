@@ -246,7 +246,7 @@ try:
             for prm in model.parameters():
                 tmp[prm] = prm.data.clone()
                 prm.data = optimizer.state[prm]['ax'].clone()
-                
+
             val_loss2 = evaluate(val_data)
             print('-' * 89)
             print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
@@ -293,6 +293,13 @@ except KeyboardInterrupt:
 
 # Load the best saved model.
 model_load(args.save)
+
+# Run on valid data.
+valid_loss = evaluate(val_data)
+print('=' * 89)
+print('| End of training | valid loss {:5.2f} | valid ppl {:8.2f} | valid bpc {:8.3f}'.format(
+    valid_loss, math.exp(valid_loss), valid_loss / math.log(2)))
+print('=' * 89)
 
 # Run on test data.
 test_loss = evaluate(test_data, test_batch_size)
