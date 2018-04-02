@@ -92,7 +92,7 @@ def model_load(fn):
 
 import os
 import hashlib
-fn = 'corpus.{}.data'.format(hashlib.md5(args.data.encode()).hexdigest())
+fn = 'corpus/corpus.{}.data'.format(hashlib.md5(args.data.encode()).hexdigest())
 if os.path.exists(fn):
     print('Loading cached dataset...')
     corpus = torch.load(fn)
