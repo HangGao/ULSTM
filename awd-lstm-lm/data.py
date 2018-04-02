@@ -23,7 +23,7 @@ class Dictionary(object):
     def __len__(self):
         return len(self.idx2word)
 
-
+ 
 class Corpus(object):
     def __init__(self, path):
         self.dictionary = Dictionary()

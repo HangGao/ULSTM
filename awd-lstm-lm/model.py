@@ -30,7 +30,7 @@ class RNNModel(nn.Module):
                     rnn.um = WeightDrop(rnn.um, ['weight'], dropout=wdrop)
                 # self.rnns = [WeightDrop(rnn, ['weight_hh_l0_0', 'weight_hh_l0_1'], dropout=wdrop) for rnn in self.rnns]
         elif rnn_type == 'GRU':
-            self.rnns = [torch.nn.GRU(ninp if l == 0 else nhid, nhid if l != nlayers - 1 else ninp, 1, dropout=0) for l in range(nlayers)]
+            self.rnns = [torch.nn.GRU(ninp if l == 0 else nhid, nhid if l != nlayers - 1 else (ninp if tie_weights else nhid), 1, dropout=0) for l in range(nlayers)]
             if wdrop:
                 self.rnns = [WeightDrop(rnn, ['weight_hh_l0'], dropout=wdrop) for rnn in self.rnns]
         elif rnn_type == 'QRNN':
