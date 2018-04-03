@@ -171,6 +171,7 @@ def evaluate(data_source, batch_size=10):
 
 
 def train():
+    sys.stdout.flush()
     # Turn on training mode which enables dropout.
     if args.model == 'QRNN': model.reset()
     total_loss = 0
