@@ -52,10 +52,12 @@ class FPLSTM_Layer(nn.Module):
             # size (batch_size, hidden_size)
             hidden_h = Variable(X.data.new(batch_size, self.hidden_size).fill_(0.))
             hidden_c = Variable(X.data.new(batch_size, self.hidden_size).fill_(0.))
+            hidden_c_tanh = F.tanh(hidden_c)
         else:
             hidden_h, hidden_c = hidden
             hidden_h = torch.squeeze(hidden_h)
             hidden_c = torch.squeeze(hidden_c)
+            hidden_c_tanh = F.tanh(hidden_c)
 
         output = []
         for i in range(seq_len):
@@ -68,11 +70,12 @@ class FPLSTM_Layer(nn.Module):
             iozf = F.sigmoid(iozfux[:, :4 * self.hidden_size] + iozfh)
             i, o, z, f = torch.split(iozf, iozf.size(1) // 4, dim=1)
 
-            u = iozfux[:, 4 * self.hidden_size:] + self.um(torch.mul(z, F.tanh(hidden_c)))
+            u = iozfux[:, 4 * self.hidden_size:] + self.um(torch.mul(z, hidden_c_tanh))
             u = F.tanh(u)
 
             hidden_c = torch.mul(i, u) + torch.mul(f, hidden_c)
-            hidden_h = torch.mul(o, F.tanh(hidden_c))
+            hidden_c_tanh = F.tanh(hidden_c)
+            hidden_h = torch.mul(o, hidden_c_tanh)
 
             # (1, batch_size, hidden_size)
             output.append(torch.unsqueeze(hidden_h, 0))
