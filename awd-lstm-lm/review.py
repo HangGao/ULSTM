@@ -55,7 +55,7 @@ parser.add_argument('--nonmono', type=int, default=5,
                     help='random seed')
 parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
-parser.add_argument('--log-interval', type=int, default=200, metavar='N',
+parser.add_argument('--log-interval', type=int, default=20, metavar='N',
                     help='report interval')
 randomhash = ''.join(str(time.time()).split('.'))
 parser.add_argument('--save', type=str,  default=randomhash+'.pt',
@@ -181,6 +181,16 @@ def batchify(dataset, dictionary, batch_size, cuda=True, max_cache_size=5000):
 ###############################################################################
 # Read Corpus
 ###############################################################################
+def model_save(fn):
+    global model, criterion, optimizer
+    with open(fn, 'wb') as f:
+        torch.save([model, criterion, optimizer], f)
+
+def model_load(fn):
+    global model, criterion, optimizer
+    with open(fn, 'rb') as f:
+        model, criterion, optimizer = torch.load(f)
+
 import os
 import hashlib
 fn = 'corpus/corpus.{}.data'.format(hashlib.md5(args.data.encode()).hexdigest())
@@ -321,7 +331,6 @@ def train():
 
         # output (batch_size, num_classes)
         output, rnn_hs, dropped_rnn_hs = model(tbatch, hidden)
-        print(output.size())
         raw_loss = criterion(output, lbatch)
 
         loss = raw_loss
