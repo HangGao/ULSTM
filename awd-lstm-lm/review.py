@@ -232,7 +232,8 @@ class Network(nn.Module):
         batch_idx = sents.data.new(batch_idx.size()).copy_(batch_idx)
 
         seq_idx = torch.sum(torch.gt(sents, 0).type(torch.LongTensor), 0) - 1
-        hids = hids[seq_idx, batch_idx]
+        hids = hids[seq_idx]
+        hids = hids[batch_idx]
 
         output = F.relu(self.layer_1(hids))
         output = F.log_softmax(self.layer_2(output), 1)
@@ -244,7 +245,7 @@ ntokens = len(corpus.dictionary)
 model = Network(args.model, ntokens, args.emsize, args.nhid, args.rhid, args.nlayers, args.num_classes, args.dropout, \
                 args.dropouth, args.dropouti, args.dropoute, args.wdrop)
 model.rnn.encoder.weight.data.copy_(embs)
-model.rnn.encoder.weight.requires_grad = False
+# model.rnn.encoder.weight.requires_grad = False
 
 params = list(model.parameters()) + list(criterion.parameters())
 params = filter(lambda p: p.requires_grad, params)
@@ -344,7 +345,7 @@ def train():
 # Loop over epochs.
 lr = args.lr
 best_val_loss = []
-stored_acc = -10000000
+stored_acc = 10000000
 
 # At any point you can hit Ctrl + C to break out of training early.
 try:
