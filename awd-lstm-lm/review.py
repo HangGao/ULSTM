@@ -228,11 +228,9 @@ class Network(nn.Module):
         output, hidden, rnn_hs, dropped_rnn_hs = self.rnn(sents, hids, return_h=True)
         hids = dropped_rnn_hs[-1]
 
-        batch_idx = torch.arange(hids.size(1)).type(torch.LongTensor)
-        batch_idx = sents.data.new(batch_idx.size()).copy_(batch_idx)
-
+        batch_idx = torch.arange(hids.size(1))
         seq_idx = torch.sum(torch.gt(sents, 0).type(torch.LongTensor), 0) - 1
-        seq_idx = sents.data.new(seq_idx.size()).copy_(seq_idx)
+
         hids = torch.index_select(hids, 0, seq_idx)
         hids = torch.index_select(hids, 0, batch_idx)
 
