@@ -228,10 +228,12 @@ class Network(nn.Module):
         output, hidden, rnn_hs, dropped_rnn_hs = self.rnn(sents, hids, return_h=True)
         hids = dropped_rnn_hs[-1]
 
+        seq_len = hids.size(0)
+        batch_len = hids.size(1)
         hids = hids.view(-1, hids.size(2))
 
-        batch_idx = Variable(torch.arange(hids.size(1)).type(type(sents.data)))
-        seq_idx = batch_idx * hids.size(0) + (torch.sum(torch.gt(sents, 0).type(type(sents.data)), 0) - 1)
+        batch_idx = Variable(torch.arange(batch_len).type(type(sents.data)))
+        seq_idx = batch_idx * seq_len + (torch.sum(torch.gt(sents, 0).type(type(sents.data)), 0) - 1)
 
         hids = torch.index_select(hids, 0, seq_idx)
 
