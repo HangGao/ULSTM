@@ -232,6 +232,7 @@ class Network(nn.Module):
         batch_idx = sents.data.new(batch_idx.size()).copy_(batch_idx)
 
         seq_idx = torch.sum(torch.gt(sents, 0).type(torch.LongTensor), 0) - 1
+        seq_idx = sents.data.new(seq_idx.size()).copy_(seq_idx)
         hids = torch.index_select(hids, 0, seq_idx)
         hids = torch.index_select(hids, 0, batch_idx)
 
