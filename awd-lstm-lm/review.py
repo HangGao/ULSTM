@@ -318,6 +318,7 @@ def train():
 
         # output (batch_size, num_classes)
         output, rnn_hs, dropped_rnn_hs = model(tbatch, hidden)
+        print(output.size())
         raw_loss = criterion(output, lbatch)
 
         loss = raw_loss
