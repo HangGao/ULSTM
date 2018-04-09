@@ -138,15 +138,17 @@ def batchify(dataset, dictionary, batch_size, cuda=True, max_cache_size=5000):
 
     def next_buffer(fp):
         records = []
+        batch_sent_len = 0
         for i in range(max_cache_size):
             line = fp.readline()
             if line == '': break
             label, sent = line.strip().split('\t')
             records.append((label, sent))
+            batch_sent_len = max(batch_sent_len, len(sent.split()))
         np.random.shuffle(records)
 
         tlabel = torch.LongTensor(len(records))
-        ttext = torch.LongTensor(len(records), max_sent_len).fill_(0)
+        ttext = torch.LongTensor(len(records), batch_sent_len).fill_(0)
         for i in range(len(records)):
             label, words = int(records[i][0]), records[i][1].split()
             words = [dictionary.word2idx[word] for word in words]
