@@ -27,7 +27,7 @@ parser.add_argument('--num_classes', type=int, default=5,
                     help='number of classed')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=30,
+parser.add_argument('--lr', type=float, default=1,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
@@ -388,7 +388,7 @@ def train():
 # Loop over epochs.
 lr = args.lr
 best_val_loss = []
-stored_loss = 10000000
+stored_acc = -10000000
 
 # At any point you can hit Ctrl + C to break out of training early.
 try:
@@ -416,10 +416,10 @@ try:
               epoch, (time.time() - epoch_start_time), val_loss2, val_acc2))
             print('-' * 89)
 
-            if val_loss2 < stored_loss:
+            if val_acc2 > stored_acc:
                 model_save(args.save)
                 print('Saving Averaged!')
-                stored_loss = val_loss2
+                stored_acc = val_acc2
 
             for prm in model.parameters():
                 prm.data = tmp[prm].clone()
@@ -431,10 +431,10 @@ try:
               epoch, (time.time() - epoch_start_time), val_loss, val_acc))
             print('-' * 89)
 
-            if val_loss < stored_loss:
+            if val_acc > stored_acc:
                 model_save(args.save)
                 print('Saving model (new best validation)')
-                stored_loss = val_loss
+                stored_acc = val_acc
 
             if args.optimizer == 'sgd' and 't0' not in optimizer.param_groups[0] and (len(best_val_loss)>args.nonmono and val_loss > min(best_val_loss[:-args.nonmono])):
                 print('Switching to ASGD')
