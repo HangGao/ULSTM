@@ -27,7 +27,7 @@ parser.add_argument('--num_classes', type=int, default=5,
                     help='number of classed')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=1,
+parser.add_argument('--lr', type=float, default=2,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
@@ -379,7 +379,7 @@ def train():
         if batch % args.log_interval == 0 and batch > 0:
             cur_loss = total_loss[0] / args.log_interval
             elapsed = time.time() - start_time
-            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:05.5f} | ms/batch {:5.2f} | loss {:5.2f} '.format(
+            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:05.5f} | ms/batch {:5.4f} | loss {:5.4f} '.format(
                 epoch, batch, nbatch, optimizer.param_groups[0]['lr'], elapsed * 1000 / args.log_interval, cur_loss))
             total_loss = 0
             start_time = time.time()
@@ -412,7 +412,7 @@ try:
 
             val_loss2, val_acc2 = evaluate(val_data, val_n_batches)
             print('-' * 89)
-            print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | valid acc {:5.2f}'.format(
+            print('| end of epoch {:3d} | time: {:5.4f}s | valid loss {:5.4f} | valid acc {:5.4f}'.format(
               epoch, (time.time() - epoch_start_time), val_loss2, val_acc2))
             print('-' * 89)
 
@@ -427,7 +427,7 @@ try:
         else:
             val_loss, val_acc = evaluate(val_data, val_n_batches)
             print('-' * 89)
-            print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | val acc {:5.2f}'.format(
+            print('| end of epoch {:3d} | time: {:5.4f}s | valid loss {:5.4f} | val acc {:5.4f}'.format(
               epoch, (time.time() - epoch_start_time), val_loss, val_acc))
             print('-' * 89)
 
@@ -458,13 +458,13 @@ model_load(args.save)
 # Run on valid data.
 val_loss, val_acc = evaluate(val_data, val_n_batches)
 print('=' * 89)
-print('| End of training | valid loss {:5.2f} | valid acc {:5.2f}'.format(
+print('| End of training | valid loss {:5.4f} | valid acc {:5.4f}'.format(
     val_loss, val_acc))
 print('=' * 89)
 
 # Run on test data.
 test_loss, test_acc = evaluate(test_data, test_n_batches)
 print('=' * 89)
-print('| End of training | test loss {:5.2f} | test acc {:5.2f}'.format(
+print('| End of training | test loss {:5.4f} | test acc {:5.4f}'.format(
     test_loss, test_acc))
 print('=' * 89)
