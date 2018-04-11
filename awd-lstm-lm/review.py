@@ -27,7 +27,7 @@ parser.add_argument('--num_classes', type=int, default=5,
                     help='number of classed')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=2,
+parser.add_argument('--lr', type=float, default=1,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
