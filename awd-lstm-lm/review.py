@@ -267,6 +267,7 @@ class Network(nn.Module):
         super(Network, self).__init__()
         self.rnn = model.RNNModel(rnn_type, ntoken, ninp, nhid, nlayers, dropout, dropouth, dropouti, dropoute, wdrop, tie_weights=False, use_decoder=False)
         self.linear= nn.Linear(nhid, num_classes)
+        self.dropout = nn.Dropout()
 
     def forward(self, sents, hids):
         """
@@ -284,7 +285,8 @@ class Network(nn.Module):
         idx = seq_idx * batch_len + batch_idx
         hids = torch.index_select(hids, 0, idx)
 
-        output = F.log_softmax(self.linear(hids), 1)
+        output = self.dropout(hids)
+        output = F.log_softmax(self.linear(output), 1)
 
         return output, rnn_hs, dropped_rnn_hs
 
