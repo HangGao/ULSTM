@@ -331,9 +331,9 @@ def evaluate(data_source, nbatch, batch_size=50):
         raw_loss = criterion(output, lbatch)
         total_loss += raw_loss.data
 
-        output = torch.exp(output).data.numpy()
+        output = torch.exp(output).data.cpu().numpy()
         prediction = np.argmax(output, 1)
-        crt = np.asarray(np.equal(prediction, lbatch.data.numpy()), 'int32')
+        crt = np.asarray(np.equal(prediction, lbatch.data.cpu().numpy()), 'int32')
         correct += np.sum(crt)
         total += prediction.shape[0]
 
