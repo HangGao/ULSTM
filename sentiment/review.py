@@ -1,18 +1,18 @@
-import argparse
+import os
+import sys
 import time
 import math
-import numpy as np
 import torch
+import argparse
+from data import *
+from model import *
+import numpy as np
 import torch.nn as nn
+from collections import Counter
 import torch.nn.functional as F
 from torch.autograd import Variable
-from collections import Counter
+from utils import batchify, get_batch
 
-import data
-import model
-import sys
-from utils import batchify, get_batch, repackage_hidden
-import os
 
 parser = argparse.ArgumentParser(description='PyTorch PennTreeBank RNN/LSTM Language Model')
 parser.add_argument('--data', type=str, default='data/sts/',
@@ -31,7 +31,7 @@ parser.add_argument('--lr', type=float, default=1,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-parser.add_argument('--epochs', type=int, default=500,
+parser.add_argument('--epochs', type=int, default=50,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=25, metavar='N',
                     help='batch size')
@@ -71,7 +71,6 @@ parser.add_argument('--when', nargs="+", type=int, default=[-1],
 parser.add_argument('--do_not_pretrain', action='store_false',
                     help='do not use pretrain embeddings')
 args = parser.parse_args()
-args.tied = False
 
 # Set the random seed manually for reproducibility.
 np.random.seed(args.seed)
@@ -85,140 +84,7 @@ if torch.cuda.is_available():
 ###############################################################################
 # Load data
 ###############################################################################
-import re
 
-class Dictionary(object):
-    def __init__(self):
-        self.word2idx = {}
-        self.idx2word = []
-        self.counter = Counter()
-        self.total = 0
-
-    def add_word(self, word):
-        if word not in self.word2idx:
-            self.idx2word.append(word)
-            self.word2idx[word] = len(self.idx2word) - 1
-        token_id = self.word2idx[word]
-        self.counter[token_id] += 1
-        self.total += 1
-        return self.word2idx[word]
-
-    def __len__(self):
-        return len(self.idx2word)
-
-class Corpus(object):
-    def __init__(self, path):
-        self.dictionary = Dictionary()
-        self.PAD_TOKEN = '<PAD>'
-        self.dictionary.add_word(self.PAD_TOKEN)
-
-        self.train, self.valid, self.test = self.read_data(path)
-
-    def read_data(self, path):
-        phrase2id = dict()
-        with open(os.path.join(path, 'dictionary.txt'), 'r') as f:
-            for line in f:
-                line = re.sub(r'[^\x00-\x7F]',' ', line)
-                phrase, id = line.strip().split('|')
-                phrase2id[phrase] = id
-
-        id2sentiment = dict()
-        with open(os.path.join(path, 'sentiment_labels.txt'), 'r') as f:
-            f.readline()
-            for line in f:
-                line = re.sub(r'[^\x00-\x7F]',' ', line)
-                id, sentiment = line.strip().split('|')
-                id2sentiment[id] = float(sentiment)
-
-        sidx2text = dict()
-        with open(os.path.join(path, 'datasetSentences.txt'), 'r') as f:
-            f.readline()
-            for line in f:
-                line = re.sub(r'[^\x00-\x7F]',' ', line)
-                idx, sent = line.strip().split('\t')
-                sidx2text[idx] = sent
-
-        train = []
-        valid = []
-        test = []
-        max_sent_len = 0
-        with open(os.path.join(path, 'datasetSplit.txt'), 'r') as f:
-            f.readline()
-            for line in f:
-                line = re.sub(r'[^\x00-\x7F]',' ', line)
-                idx, split = line.strip().split(',')
-                text = sidx2text[idx]
-                if text not in phrase2id: continue
-                sentiment = id2sentiment[phrase2id[text]]
-                if sentiment <= 0.2:
-                    sentiment = 0
-                elif sentiment <= 0.4:
-                    sentiment = 1
-                elif sentiment <= 0.6:
-                    sentiment = 2
-                elif sentiment <= 0.8:
-                    sentiment = 3
-                else:
-                    sentiment = 4
-
-                words = text.split()
-                for word in words:
-                    self.dictionary.add_word(word)
-                max_sent_len = max(max_sent_len, len(words))
-
-                if int(split) == 1:
-                    train.append((sentiment, text))
-                elif int(split) == 2:
-                    test.append((sentiment, text))
-                elif int(split) == 3:
-                    valid.append((sentiment, text))
-                else:
-                    raise Exception('wrong data file')
-
-        np.random.shuffle(train)
-
-        def to_torch_tensor(dataset):
-            targets = torch.LongTensor(len(dataset)).fill_(0)
-            texts = torch.LongTensor(len(dataset), max_sent_len).fill_(0)
-
-            for i in range(len(dataset)):
-                sentiment, text = dataset[i]
-                targets[i] = sentiment
-                words = text.split()
-                for j in range(len(words)):
-                    texts[i, j] = self.dictionary.word2idx[words[j]]
-            return texts, targets
-
-        train = to_torch_tensor(train)
-        valid = to_torch_tensor(valid)
-        test = to_torch_tensor(test)
-
-        return train, valid, test
-
-def batchify(dataset, batch_size, args):
-    data, target = dataset
-
-    perm = torch.randperm(target.size(0))
-    data = data[perm]
-    target = target[perm]
-
-    if args.cuda:
-        data = data.cuda()
-        target = target.cuda()
-
-    n_batches = int(math.ceil(target.size(0) / batch_size))
-    return (data, target), n_batches
-
-def get_batch(dataset, batch, batch_size):
-    data, target = dataset
-    sidx = batch * batch_size
-    eidx = min(target.size(0), (batch + 1) * batch_size)
-
-    return data[sidx:eidx].t(), target[sidx:eidx]
-
-###############################################################################
-# Read Corpus
-###############################################################################
 def model_save(fn):
     global model, criterion, optimizer
     with open(fn, 'wb') as f:
@@ -262,32 +128,6 @@ else:
 ###############################################################################
 # Build the model
 ###############################################################################
-class Network(nn.Module):
-    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, num_classes, dropout=0.5, dropouth=0.5, dropouti=0.5, dropoute=0.1, wdrop=0):
-        super(Network, self).__init__()
-        self.rnn = model.RNNModel(rnn_type, ntoken, ninp, nhid, nlayers, dropout, dropouth, dropouti, dropoute, wdrop, tie_weights=False, use_decoder=False)
-        self.linear= nn.Linear(nhid, num_classes)
-
-    def forward(self, sents, hids):
-        """
-            sents: (max_sent_len, batch_size)
-        """
-        output, hidden, rnn_hs, dropped_rnn_hs = self.rnn(sents, hids, return_h=True)
-        hids = dropped_rnn_hs[-1]
-
-        seq_len = hids.size(0)
-        batch_len = hids.size(1)
-
-        hids = hids.view(-1, hids.size(2))
-        batch_idx = Variable(torch.arange(batch_len).type(type(sents.data)))
-        seq_idx = torch.sum(torch.gt(sents, 0).type(type(sents.data)), 0) - 1
-        idx = seq_idx * batch_len + batch_idx
-        hids = torch.index_select(hids, 0, idx)
-
-        output = F.log_softmax(self.linear(hids), 1)
-
-        return output, rnn_hs, dropped_rnn_hs
-
 criterion = nn.NLLLoss()
 ntokens = len(corpus.dictionary)
 model = Network(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.num_classes, args.dropout, \
