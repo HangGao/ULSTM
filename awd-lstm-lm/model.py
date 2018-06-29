@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -89,6 +90,70 @@ class ULSTM_Layer(nn.Module):
         hidden_h = torch.unsqueeze(hidden_h, 0)
         return output, (hidden_h, hidden_c)
 
+class PLSTM_Layer(nn.Module):
+    r"""Applies a single LSTM layer with peephole connections to an input sequence. Only support 1 layer in our case
+    Args:
+        input_size: The number of expected features in the input x.
+        hidden_size: The number of features in the hidden state h. If not specified, the input size is used.
+    Inputs: X, hidden
+        - X (seq_len, batch, input_size): tensor containing the features of the input sequence.
+        - hidden (batch, hidden_size): tensor containing the initial hidden state for the QRNN.
+    Outputs: output, h_n
+        - output (seq_len, batch, hidden_size): tensor containing the output of the QRNN for each timestep.
+        - h_n (batch, hidden_size): tensor containing the hidden state for t=seq_len
+    """
+
+    def __init__(self, input_size, hidden_size=None):
+        super(PLSTM_Layer, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        if self.hidden_size is None:
+            self.hidden_size = input_size
+
+        self.iozfx = nn.Linear(self.input_size, 4 * self.hidden_size)
+        self.iozfh = nn.Linear(self.hidden_size, 4 * self.hidden_size)
+
+        self.zc = nn.Parameter(torch.Tensor(1, hidden_size))
+        stdv = 1.0 / math.sqrt(hidden_size)
+        self.zc.data.uniform_(-stdv, stdv)
+
+    def __repr__(self):
+        s = '{name}({input_size}, {hidden_size})'
+        return s.format(name=self.__class__.__name__, **self.__dict__)
+
+    def forward(self, X, hidden=None):
+        seq_len, batch_size, _ = X.size()
+
+        if hidden is None:
+            # size (batch_size, hidden_size)
+            hidden_h = Variable(X.data.new(batch_size, self.hidden_size).fill_(0.))
+            hidden_c = Variable(X.data.new(batch_size, self.hidden_size).fill_(0.))
+        else:
+            hidden_h, hidden_c = hidden
+            hidden_h = torch.squeeze(hidden_h)
+            hidden_c = torch.squeeze(hidden_c)
+
+        output = []
+        for i in range(seq_len):
+            x = X[i]       # size (batch_size, input_size)
+            iozf = self.iozfx(x) + self.iozfh(hidden_h)
+            i, o, z, f = torch.split(iozf, iozf.size(1) // 4, dim=1)
+            i, o, f = F.sigmoid(i), F.sigmoid(o), F.sigmoid(f)
+            u = torch.mul(self.zc.expand(hidden_c.size()), hidden_c)
+            z = F.tanh(z + u)
+
+            hidden_c = torch.mul(i, z) + torch.mul(f, hidden_c)
+            hidden_c_tanh = F.tanh(hidden_c)
+            hidden_h = torch.mul(o, hidden_c_tanh)
+
+            # (1, batch_size, hidden_size)
+            output.append(torch.unsqueeze(hidden_h, 0))
+
+        output = torch.cat(output, 0)
+        hidden_c = torch.unsqueeze(hidden_c, 0)
+        hidden_h = torch.unsqueeze(hidden_h, 0)
+        return output, (hidden_h, hidden_c)
+
 class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and with/without a decoder."""
 
@@ -100,7 +165,7 @@ class RNNModel(nn.Module):
         self.hdrop = nn.Dropout(dropouth)
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(ntoken, ninp)
-        assert rnn_type in ['LSTM', 'QRNN', 'GRU', 'ULSTM'], 'RNN type is not supported'
+        assert rnn_type in ['LSTM', 'QRNN', 'GRU', 'ULSTM', 'PLSTM'], 'RNN type is not supported'
         if rnn_type == 'LSTM':
             self.rnns = [torch.nn.LSTM(ninp if l == 0 else nhid, nhid if l != nlayers - 1 else (ninp if tie_weights else nhid), 1, dropout=0) for l in range(nlayers)]
             if wdrop:
@@ -111,7 +176,11 @@ class RNNModel(nn.Module):
                 for rnn in self.rnns:
                     rnn.iozfh = WeightDrop(rnn.iozfh, ['weight'], dropout=wdrop)
                     rnn.um = WeightDrop(rnn.um, ['weight'], dropout=wdrop)
-                # self.rnns = [WeightDrop(rnn, ['weight_hh_l0_0', 'weight_hh_l0_1'], dropout=wdrop) for rnn in self.rnns]
+        elif rnn_type == 'PLSTM':
+            self.rnns = [PLSTM_Layer(input_size=ninp if l == 0 else nhid, hidden_size=nhid if l != nlayers - 1 else (ninp if tie_weights else nhid)) for l in range(nlayers)]
+            if wdrop:
+                for rnn in self.rnns:
+                    rnn.iozfh = WeightDrop(rnn.iozfh, ['weight'], dropout=wdrop)
         elif rnn_type == 'GRU':
             self.rnns = [torch.nn.GRU(ninp if l == 0 else nhid, nhid if l != nlayers - 1 else (ninp if tie_weights else nhid), 1, dropout=0) for l in range(nlayers)]
             if wdrop:
@@ -191,7 +260,7 @@ class RNNModel(nn.Module):
 
     def init_hidden(self, bsz):
         weight = next(self.parameters()).data
-        if self.rnn_type == 'LSTM' or self.rnn_type == 'ULSTM':
+        if self.rnn_type == 'LSTM' or self.rnn_type == 'ULSTM' or self.rnn_type == 'PLSTM':
             return [(Variable(weight.new(1, bsz, self.nhid if l != self.nlayers - 1 else (self.ninp if self.tie_weights else self.nhid)).zero_()),
                     Variable(weight.new(1, bsz, self.nhid if l != self.nlayers - 1 else (self.ninp if self.tie_weights else self.nhid)).zero_()))
                     for l in range(self.nlayers)]
