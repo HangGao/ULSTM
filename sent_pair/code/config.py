@@ -27,8 +27,6 @@ def parse_args():
                         help='fine tune word embeddings')
     parser.add_argument('--use_o', action='store_true',
                         help='Use output gate')
-    parser.add_argument('--use_peephole', action='store_true',
-                        help='Use output gate')
 
     # training arguments
     parser.add_argument('--epochs', default=10, type=int,
@@ -45,22 +43,13 @@ def parse_args():
     parser.add_argument('--optim', default='adagrad',
                         help='optimizer (default: adagrad)')
 
-    # pre-training arguments
-    parser.add_argument('--use_pretrain',  action='store_true',
-                        help='Whether to use pre-training data')
-    parser.add_argument('--pretrain_task', default='sts', help='Type of pretrain task')
-    parser.add_argument('--pretrain_lr', default=0.03, type=float,
-                        metavar='PLR', help='initial pretraining learning rate')
-    parser.add_argument('--pretrain_epochs', default=5, type=int,
-                        help='number of total pretrain epochs to run')
-
     # miscellaneous options
     parser.add_argument('--seed', default=1234, type=int,
                         help='random seed (default: 1234)')
     cuda_parser = parser.add_mutually_exclusive_group(required=False)
     cuda_parser.add_argument('--cuda', dest='cuda', action='store_true')
     cuda_parser.add_argument('--no-cuda', dest='cuda', action='store_false')
-    parser.set_defaults(cuda=True)
+    parser.set_defaults(cuda=False)
 
     args = parser.parse_args()
     return args

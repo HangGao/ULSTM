@@ -14,6 +14,7 @@ from metrics import *
 from utils import load_word_vectors, build_vocab, map_label_to_target
 from config import parse_args
 from tqdm import tqdm
+import numpy
 
 class KLCriterionPackage(object):
     def __init__(self, num_classes):
@@ -78,11 +79,11 @@ def train_on_data(epoch, model, optimizer, criterion, dataset, args):
             linput, rinput = linput.cuda(), rinput.cuda()
             target = target.cuda()
 
-        output = model(ltree, linput, rtree, rinput)
+        output = model(linput, rinput)
         output = criterion.process(output)
 
         loss = criterion.loss(output, target)
-        total_loss += loss.data[0]
+        total_loss += loss.item()
         loss.backward()
 
         if idx % args.batchsize == 0 and idx > 0:
@@ -110,11 +111,11 @@ def test_on_data(epoch, model, criterion, dataset, args):
             target = target.cuda()
 
         with torch.no_grad():
-            output = model(ltree, linput, rtree, rinput)
+            output = model(linput, rinput)
             output = criterion.process(output)
 
             loss = criterion.loss(output, target)
-            total_loss += loss.data[0]
+            total_loss += loss.item()
 
             output = output.data.squeeze().cpu()
             predictions[idx] = criterion.postprocess(output)
@@ -218,7 +219,7 @@ def main():
     # model, train, and evaluation
     ############################################################################
     network = SentPairNetwork(vocab.size(), args.input_dim, args.mem_dim, [args.hidden_dim, args.num_classes],
-            args.model_type, args.sparse, args.tune_embs, args.use_o, args.use_peephole)
+            args.model_type, args.sparse, args.tune_embs, args.use_o)
     criterion = KLCriterionPackage(args.num_classes)
     if args.cuda:
         network.cuda()
