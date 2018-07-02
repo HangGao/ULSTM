@@ -138,7 +138,7 @@ class PLSTM_Layer(nn.Module):
             iozf = self.iozfx(x) + self.iozfh(hidden_h)
             i, o, z, f = torch.split(iozf, iozf.size(1) // 4, dim=1)
             i, o, f = F.sigmoid(i), F.sigmoid(o), F.sigmoid(f)
-            u = torch.mul(self.zc.expand(hidden_c.size()), hidden_c)
+            u = torch.mul(self.zc.expand(batch_size, self.hidden_size), hidden_c)
             z = F.tanh(z + u)
 
             hidden_c = torch.mul(i, z) + torch.mul(f, hidden_c)
