@@ -71,6 +71,7 @@ parser.add_argument('--when', nargs="+", type=int, default=[-1],
 parser.add_argument('--do_not_pretrain', action='store_false',
                     help='do not use pretrain embeddings')
 args = parser.parse_args()
+args.tied = False
 
 # Set the random seed manually for reproducibility.
 np.random.seed(args.seed)
